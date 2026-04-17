@@ -1,0 +1,12 @@
+GET http://localhost:3000/transacoes
+
+###
+
+POST http://localhost:3000/transacoes
+Content-Type: application/json
+
+{
+  "descricao": "Salário",
+  "valor": 3000,
+  "tipo": "entrada"
+}
