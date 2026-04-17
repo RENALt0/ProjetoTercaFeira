@@ -1,0 +1,7 @@
+CREATE TABLE transacoes (
+    id SERIAL PRIMARY KEY,
+    descricao TEXT NOT NULL,
+    valor NUMERIC(10,2) NOT NULL,
+    tipo VARCHAR(10),
+    data TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
