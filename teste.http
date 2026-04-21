@@ -2,11 +2,29 @@ GET http://localhost:3000/transacoes
 
 ###
 
+GET http://localhost:3000/resumo
+
+###
+
 POST http://localhost:3000/transacoes
 Content-Type: application/json
 
 {
   "descricao": "Salário",
   "valor": 3000,
+  "tipo": "entrada"
+}
+###
+
+DELETE http://localhost:3000/transacoes/5
+
+###
+
+PUT http://localhost:3000/transacoes/2
+Content-Type: application/json
+
+{
+  "descricao": "Salário corrigido",
+  "valor": 3500,
   "tipo": "entrada"
 }
