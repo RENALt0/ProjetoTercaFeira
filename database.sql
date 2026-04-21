@@ -12,4 +12,8 @@ CREATE TABLE transacoes (
 INSERT INTO transacoes (descricao, valor, tipo)
 VALUES 
 ('Salário', 3000, 'entrada'),
+<<<<<<< HEAD
 ('Mercado', 200, 'saida');
+=======
+('Mercado', 200, 'saida');
+>>>>>>> f66752950d3a328b0079c6248b166506130096b2
