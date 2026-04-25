@@ -17,7 +17,12 @@ const app = express(); //cria o servidor (sistema que pode receber requisições
 
 app.use(express.json()); //pega o json que chega e transforma em um objeto java script
                         
-//GET e POST são métodos HTTP fundamentais para troca de dados cliente-servidor. GET recupera informações, anexando parâmetros na URL (limitado, visível, cacheável). POST envia dados para processamento no corpo da requisição (seguro para dados sensíveis, sem limite de tamanho, não cacheável). Use GET para buscas/leituras e POST para cadastros/logins.
+/*GET e POST são métodos HTTP fundamentais para troca de dados cliente-servidor. 
+GET recupera informações, anexando parâmetros na URL (limitado, visível, cacheável). 
+POST envia dados para processamento no corpo da requisição (seguro para dados sensíveis, 
+sem limite de tamanho, não cacheável). 
+Use GET para buscas/leituras e POST para cadastros/logins.
+*/
 
 // ROTAS
 app.get("/transacoes", async (req, res) => {
@@ -68,34 +73,6 @@ app.post("/transacoes", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ erro: "Erro ao salvar transação" });
-  }
-});
-
-//Função nova: "Resumo" - calcula o saldo de todas a entradas e saídas
-app.get("/resumo", async (req, res) => {
-  try {
-    const entradas = await pool.query(
-      "SELECT SUM(valor) FROM transacoes WHERE tipo = 'entrada'"
-    );
-
-    const saidas = await pool.query(
-      "SELECT SUM(valor) FROM transacoes WHERE tipo = 'saida'"
-    );
-
-    const totalEntradas = Number(entradas.rows[0].sum) || 0;
-    const totalSaidas = Number(saidas.rows[0].sum) || 0;
-
-    const saldo = totalEntradas - totalSaidas;
-
-    res.json({
-      saldo,
-      entradas: totalEntradas,
-      saidas: totalSaidas
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao gerar resumo" });
   }
 });
 
@@ -180,6 +157,143 @@ app.put("/transacoes/:id", async (req, res) => {
     });
   }
 });
+
+//Função nova: "Resumo" - calcula o saldo de todas a entradas e saídas
+app.get("/resumo", async (req, res) => {
+  try {
+    const entradas = await pool.query(
+      "SELECT SUM(valor) FROM transacoes WHERE tipo = 'entrada'"
+    );
+
+    const saidas = await pool.query(
+      "SELECT SUM(valor) FROM transacoes WHERE tipo = 'saida'"
+    );
+
+    const totalEntradas = Number(entradas.rows[0].sum) || 0;
+    const totalSaidas = Number(saidas.rows[0].sum) || 0;
+
+    const saldo = totalEntradas - totalSaidas;
+
+    res.json({
+      saldo,
+      entradas: totalEntradas,
+      saidas: totalSaidas
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: "Erro ao gerar resumo" });
+  }
+});
+
+
+//Função nova: "Gasto por categoria" - Seleciona e soma os gastos por categoria.
+app.get("/gasto-categoria", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT descricao, SUM(valor) as total
+      FROM transacoes
+      WHERE tipo = 'saida'
+      GROUP BY descricao
+      ORDER BY total DESC
+    `);
+
+    res.json({
+      categorias: resultado.rows.map(row => ({
+        categoria: row.categoria,
+        total: Number(row.total)
+      }))
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: "Erro ao calcular gastos por categoria" });
+  }
+});
+
+
+//FILTROS:
+
+//Função nova: "Filtro de periodo" - Retorna as transações por data
+app.get("/transacoes/periodo", async (req, res) => {
+  try {
+    const { dataInicio, dataFim } = req.query;
+
+    const resultado = await pool.query(
+      `SELECT * FROM transacoes
+       WHERE data BETWEEN $1 AND $2
+       ORDER BY data DESC`,
+      [dataInicio, dataFim] //Lembrar de atribuir variaveis no front
+    );
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: "Erro ao buscar transações por período" });
+  }
+});
+
+//Função nova: "Filtro Categoria" - Retorna as transações por categoria
+app.get("/transacoes/categoria", async (req, res) => {
+  try {
+    const { categoria } = req.query;
+
+    const resultado = await pool.query(
+      `SELECT * FROM transacoes
+       WHERE descricao ILIKE $1
+       ORDER BY data DESC`,
+      [`%${categoria}%`]
+    );
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: "Erro ao buscar por categoria" });
+  }
+});
+
+//Função nova: "Filtro tipo" - Retorna as transações por tipo (entrada ou saida)
+app.get("/transacoes/tipo", async (req, res) => {
+  try {
+    const { tipo } = req.query;
+
+    const resultado = await pool.query(
+      `SELECT * FROM transacoes
+       WHERE tipo = $1
+       ORDER BY data DESC`,
+      [tipo]
+    );
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: "Erro ao buscar por tipo" });
+  }
+});
+
+//Função nova: "Filtro valor" - Retorna as transações por valor faixa de valor
+app.get("/transacoes/valor", async (req, res) => {
+  try {
+    const { min, max } = req.query;
+
+    const resultado = await pool.query(
+      `SELECT * FROM transacoes
+       WHERE valor BETWEEN $1 AND $2
+       ORDER BY valor DESC`,
+      [min, max]
+    );
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: "Erro ao buscar por valor" });
+  }
+});
+
 
 // LIGA O SERVIDOR (SEMPRE POR ÚLTIMO)
 app.listen(3000, () => {
