@@ -24,7 +24,9 @@ sem limite de tamanho, não cacheável).
 Use GET para buscas/leituras e POST para cadastros/logins.
 */
 
-// ROTAS
+//Funções Pincipais:
+
+//Função
 app.get("/transacoes", async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM transacoes');
@@ -36,6 +38,7 @@ app.get("/transacoes", async (req, res) => {
   }
 });
 
+//Função: "Transacoes" - Insere as transações no banco de dados
 app.post("/transacoes", async (req, res) => {
 // PRIMEIRA COISA: pegar os dados do body
   const { descricao, valor, tipo } = req.body;
@@ -211,6 +214,105 @@ app.get("/gasto-categoria", async (req, res) => {
   }
 });
 
+//Função nova: "Media mensal" - Calcula a média de gastos mensais
+app.get("/media-mensal", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT AVG(total_mes) AS media
+      FROM (
+        SELECT DATE_TRUNC('month', data) AS mes,
+               SUM(valor) AS total_mes
+        FROM transacoes
+        WHERE tipo = 'saida'
+        GROUP BY mes
+      ) sub
+    `);
+
+    const media = Number(resultado.rows[0].media) || 0;
+
+    res.json({ mediaMensal: media });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: "Erro ao calcular média mensal" });
+  }
+});
+
+//Função nova: "Maior gasto" - Seleciona o maior gasto registrado
+app.get("/maior-gasto", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT * FROM transacoes
+      WHERE tipo = 'saida'
+      ORDER BY valor DESC
+      LIMIT 1
+    `);
+
+    res.json(resultado.rows[0] || {});
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: "Erro ao buscar maior gasto" });
+  }
+});
+
+//Função nova: "Menor gasto" - Seleciona o menor gasto registrado
+app.get("/menor-gasto", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT * FROM transacoes
+      WHERE tipo = 'saida'
+      ORDER BY valor ASC
+      LIMIT 1
+    `);
+
+    res.json(resultado.rows[0] || {});
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: "Erro ao buscar menor gasto" });
+  }
+});
+
+//Função nova: "Variacao mensal" - Calcula a variação entre os meses
+app.get("/variacao-mensal", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT 
+        DATE_TRUNC('month', data) AS mes,
+        SUM(valor) AS total
+      FROM transacoes
+      WHERE tipo = 'saida'
+      GROUP BY mes
+      ORDER BY mes
+    `);
+
+    //Cria uma variavel "mes" para receber o valor total de cada mes
+    const dados = resultado.rows.map(row => ({
+      mes: row.mes,
+      total: Number(row.total)
+    }));
+
+    const variacoes = [];
+
+    //Cria um loop que calcula a diferença entre um mes e o anterior
+    for (let i = 1; i < dados.length; i++) {
+      variacoes.push({
+        mes: dados[i].mes,
+        variacao: dados[i].total - dados[i - 1].total
+      });
+    }
+
+    res.json({
+      dadosMensais: dados,
+      variacoes
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: "Erro ao calcular variação mensal" });
+  }
+});
 
 //FILTROS:
 
