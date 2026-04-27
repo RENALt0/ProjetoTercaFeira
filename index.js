@@ -17,16 +17,9 @@ const app = express(); //cria o servidor (sistema que pode receber requisições
 
 app.use(express.json()); //pega o json que chega e transforma em um objeto java script
                         
-/*GET e POST são métodos HTTP fundamentais para troca de dados cliente-servidor. 
-GET recupera informações, anexando parâmetros na URL (limitado, visível, cacheável). 
-POST envia dados para processamento no corpo da requisição (seguro para dados sensíveis, 
-sem limite de tamanho, não cacheável). 
-Use GET para buscas/leituras e POST para cadastros/logins.
-*/
+//GET e POST são métodos HTTP fundamentais para troca de dados cliente-servidor. GET recupera informações, anexando parâmetros na URL (limitado, visível, cacheável). POST envia dados para processamento no corpo da requisição (seguro para dados sensíveis, sem limite de tamanho, não cacheável). Use GET para buscas/leituras e POST para cadastros/logins.
 
-//Funções Pincipais:
-
-//Função
+// ROTAS
 app.get("/transacoes", async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM transacoes');
@@ -38,7 +31,6 @@ app.get("/transacoes", async (req, res) => {
   }
 });
 
-//Função: "Transacoes" - Insere as transações no banco de dados
 app.post("/transacoes", async (req, res) => {
 // PRIMEIRA COISA: pegar os dados do body
   const { descricao, valor, tipo } = req.body;
@@ -76,6 +68,34 @@ app.post("/transacoes", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ erro: "Erro ao salvar transação" });
+  }
+});
+
+//Função nova: "Resumo" - calcula o saldo de todas a entradas e saídas
+app.get("/resumo", async (req, res) => {
+  try {
+    const entradas = await pool.query(
+      "SELECT SUM(valor) FROM transacoes WHERE tipo = 'entrada'"
+    );
+
+    const saidas = await pool.query(
+      "SELECT SUM(valor) FROM transacoes WHERE tipo = 'saida'"
+    );
+
+    const totalEntradas = Number(entradas.rows[0].sum) || 0;
+    const totalSaidas = Number(saidas.rows[0].sum) || 0;
+
+    const saldo = totalEntradas - totalSaidas;
+
+    res.json({
+      saldo,
+      entradas: totalEntradas,
+      saidas: totalSaidas
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: "Erro ao gerar resumo" });
   }
 });
 
@@ -160,242 +180,6 @@ app.put("/transacoes/:id", async (req, res) => {
     });
   }
 });
-
-//Função nova: "Resumo" - calcula o saldo de todas a entradas e saídas
-app.get("/resumo", async (req, res) => {
-  try {
-    const entradas = await pool.query(
-      "SELECT SUM(valor) FROM transacoes WHERE tipo = 'entrada'"
-    );
-
-    const saidas = await pool.query(
-      "SELECT SUM(valor) FROM transacoes WHERE tipo = 'saida'"
-    );
-
-    const totalEntradas = Number(entradas.rows[0].sum) || 0;
-    const totalSaidas = Number(saidas.rows[0].sum) || 0;
-
-    const saldo = totalEntradas - totalSaidas;
-
-    res.json({
-      saldo,
-      entradas: totalEntradas,
-      saidas: totalSaidas
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao gerar resumo" });
-  }
-});
-
-
-//Função nova: "Gasto por categoria" - Seleciona e soma os gastos por categoria.
-app.get("/gasto-categoria", async (req, res) => {
-  try {
-    const resultado = await pool.query(`
-      SELECT descricao, SUM(valor) as total
-      FROM transacoes
-      WHERE tipo = 'saida'
-      GROUP BY descricao
-      ORDER BY total DESC
-    `);
-
-    res.json({
-      categorias: resultado.rows.map(row => ({
-        categoria: row.categoria,
-        total: Number(row.total)
-      }))
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao calcular gastos por categoria" });
-  }
-});
-
-//Função nova: "Media mensal" - Calcula a média de gastos mensais
-app.get("/media-mensal", async (req, res) => {
-  try {
-    const resultado = await pool.query(`
-      SELECT AVG(total_mes) AS media
-      FROM (
-        SELECT DATE_TRUNC('month', data) AS mes,
-               SUM(valor) AS total_mes
-        FROM transacoes
-        WHERE tipo = 'saida'
-        GROUP BY mes
-      ) sub
-    `);
-
-    const media = Number(resultado.rows[0].media) || 0;
-
-    res.json({ mediaMensal: media });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao calcular média mensal" });
-  }
-});
-
-//Função nova: "Maior gasto" - Seleciona o maior gasto registrado
-app.get("/maior-gasto", async (req, res) => {
-  try {
-    const resultado = await pool.query(`
-      SELECT * FROM transacoes
-      WHERE tipo = 'saida'
-      ORDER BY valor DESC
-      LIMIT 1
-    `);
-
-    res.json(resultado.rows[0] || {});
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao buscar maior gasto" });
-  }
-});
-
-//Função nova: "Menor gasto" - Seleciona o menor gasto registrado
-app.get("/menor-gasto", async (req, res) => {
-  try {
-    const resultado = await pool.query(`
-      SELECT * FROM transacoes
-      WHERE tipo = 'saida'
-      ORDER BY valor ASC
-      LIMIT 1
-    `);
-
-    res.json(resultado.rows[0] || {});
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao buscar menor gasto" });
-  }
-});
-
-//Função nova: "Variacao mensal" - Calcula a variação entre os meses
-app.get("/variacao-mensal", async (req, res) => {
-  try {
-    const resultado = await pool.query(`
-      SELECT 
-        DATE_TRUNC('month', data) AS mes,
-        SUM(valor) AS total
-      FROM transacoes
-      WHERE tipo = 'saida'
-      GROUP BY mes
-      ORDER BY mes
-    `);
-
-    //Cria uma variavel "mes" para receber o valor total de cada mes
-    const dados = resultado.rows.map(row => ({
-      mes: row.mes,
-      total: Number(row.total)
-    }));
-
-    const variacoes = [];
-
-    //Cria um loop que calcula a diferença entre um mes e o anterior
-    for (let i = 1; i < dados.length; i++) {
-      variacoes.push({
-        mes: dados[i].mes,
-        variacao: dados[i].total - dados[i - 1].total
-      });
-    }
-
-    res.json({
-      dadosMensais: dados,
-      variacoes
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao calcular variação mensal" });
-  }
-});
-
-//FILTROS:
-
-//Função nova: "Filtro de periodo" - Retorna as transações por data
-app.get("/transacoes/periodo", async (req, res) => {
-  try {
-    const { dataInicio, dataFim } = req.query;
-
-    const resultado = await pool.query(
-      `SELECT * FROM transacoes
-       WHERE data BETWEEN $1 AND $2
-       ORDER BY data DESC`,
-      [dataInicio, dataFim] //Lembrar de atribuir variaveis no front
-    );
-
-    res.json(resultado.rows);
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao buscar transações por período" });
-  }
-});
-
-//Função nova: "Filtro Categoria" - Retorna as transações por categoria
-app.get("/transacoes/categoria", async (req, res) => {
-  try {
-    const { categoria } = req.query;
-
-    const resultado = await pool.query(
-      `SELECT * FROM transacoes
-       WHERE descricao ILIKE $1
-       ORDER BY data DESC`,
-      [`%${categoria}%`]
-    );
-
-    res.json(resultado.rows);
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao buscar por categoria" });
-  }
-});
-
-//Função nova: "Filtro tipo" - Retorna as transações por tipo (entrada ou saida)
-app.get("/transacoes/tipo", async (req, res) => {
-  try {
-    const { tipo } = req.query;
-
-    const resultado = await pool.query(
-      `SELECT * FROM transacoes
-       WHERE tipo = $1
-       ORDER BY data DESC`,
-      [tipo]
-    );
-
-    res.json(resultado.rows);
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao buscar por tipo" });
-  }
-});
-
-//Função nova: "Filtro valor" - Retorna as transações por valor faixa de valor
-app.get("/transacoes/valor", async (req, res) => {
-  try {
-    const { min, max } = req.query;
-
-    const resultado = await pool.query(
-      `SELECT * FROM transacoes
-       WHERE valor BETWEEN $1 AND $2
-       ORDER BY valor DESC`,
-      [min, max]
-    );
-
-    res.json(resultado.rows);
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao buscar por valor" });
-  }
-});
-
 
 // LIGA O SERVIDOR (SEMPRE POR ÚLTIMO)
 app.listen(3000, () => {
