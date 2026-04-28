@@ -10,13 +10,16 @@ POST http://localhost:3000/transacoes
 Content-Type: application/json
 
 {
-  "descricao": "Salário",
-  "valor": 3000,
-  "tipo": "entrada"
+  "descricao": "Carro",
+  "categoria": "Veículo",
+  "valor": 2500,
+  "tipo": "saida",
+  "metodo_pagamento": "pix",
+  "observacao": "Compra do mês"
 }
 ###
 
-DELETE http://localhost:3000/transacoes/5
+DELETE http://localhost:3000/transacoes/14
 
 ###
 
@@ -25,6 +28,45 @@ Content-Type: application/json
 
 {
   "descricao": "Salário corrigido",
+  "categoria": "Renda",
   "valor": 3500,
-  "tipo": "entrada"
+  "tipo": "entrada",
+  "metodo_pagamento": "pix",
+  "observacao": "Salário atualizado"
 }
+
+###
+
+GET http://localhost:3000/gasto-categoria
+
+###
+
+GET http://localhost:3000/media-mensal
+
+###
+
+GET http://localhost:3000/maior-gasto
+
+###
+
+GET http://localhost:3000/menor-gasto
+
+###
+
+GET http://localhost:3000/variacao-mensal
+
+###
+
+GET http://localhost:3000/transacoes/periodo?dataInicio=2024-01-01&dataFim=2024-12-31
+
+###
+
+GET http://localhost:3000/transacoes/categoria?categoria=Alimentação
+
+###
+
+GET http://localhost:3000/transacoes/tipo?tipo=saida
+
+###
+
+GET http://localhost:3000/transacoes/valor?min=100&max=1000

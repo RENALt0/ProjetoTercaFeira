@@ -24,12 +24,40 @@ sem limite de tamanho, não cacheável).
 Use GET para buscas/leituras e POST para cadastros/logins.
 */
 
+
+
+// FUNÇÃO AUXILIAR: VALIDAR DADOS DE TRANSAÇÃO
+// Evita repetir validações no POST e PUT
+function validarTransacao(descricao, valor, tipo) {
+
+  // Verifica campos vazios
+  if (!descricao || descricao.trim() === "" || valor === undefined || !tipo) {
+    return "Descrição, valor e tipo são obrigatórios";
+  }
+
+  // Verifica tipo permitido
+  if (tipo !== "entrada" && tipo !== "saida") {
+    return "Tipo deve ser 'entrada' ou 'saida'";
+  }
+
+  // Converte valor para número
+  const valorNumerico = Number(valor);
+
+  // Verifica se é número válido
+  if (isNaN(valorNumerico)) {
+    return "Valor inválido";
+  }
+
+  // Se tudo estiver certo, retorna null
+  return null;
+}
+
 //Funções Pincipais:
 
 //Função
 app.get("/transacoes", async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM transacoes');
+    const result = await pool.query('SELECT * FROM transacoes ORDER BY data DESC');
     res.json(result.rows);
 
   } catch (error) {
@@ -40,42 +68,58 @@ app.get("/transacoes", async (req, res) => {
 
 //Função: "Transacoes" - Insere as transações no banco de dados
 app.post("/transacoes", async (req, res) => {
-// PRIMEIRA COISA: pegar os dados do body
-  const { descricao, valor, tipo } = req.body;
 
-  // validações básicas
-  if (!descricao || descricao.trim() === "" || valor === undefined || !tipo) {
+  // pega os dados do body
+  const { descricao, valor, tipo, categoria, metodo_pagamento, observacao } = req.body;
+
+  // usa função auxiliar
+  const erroValidacao = validarTransacao(descricao, valor, tipo);
+
+  if (erroValidacao) {
     return res.status(400).json({
-      erro: "Descrição, valor e tipo são obrigatórios"
+      erro: erroValidacao
     });
   }
 
-  if (tipo !== "entrada" && tipo !== "saida") {
+  // valida categoria
+  if (!categoria || categoria.trim() === "") {
     return res.status(400).json({
-      erro: "Tipo deve ser 'entrada' ou 'saida'"
+      erro: "Categoria é obrigatória"
     });
   }
 
-  // AQUI verifica se o valor é válido
+  // converte valor
   const valorNumerico = Number(valor);
-
-  if (isNaN(valorNumerico)) {
-    return res.status(400).json({
-      erro: "Valor inválido"
-    });
-  }
 
   try {
     const result = await pool.query(
-      'INSERT INTO transacoes (descricao, valor, tipo) VALUES ($1, $2, $3) RETURNING *',
-      [descricao, valorNumerico, tipo] // 👈 usa o convertido aqui
+      `INSERT INTO transacoes (
+        descricao,
+        valor,
+        tipo,
+        categoria,
+        metodo_pagamento,
+        observacao
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *`,
+      [
+        descricao,
+        valorNumerico,
+        tipo,
+        categoria,
+        metodo_pagamento,
+        observacao
+      ]
     );
 
     res.status(201).json(result.rows[0]);
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ erro: "Erro ao salvar transação" });
+    res.status(500).json({
+      erro: "Erro ao salvar transação"
+    });
   }
 });
 
@@ -89,7 +133,7 @@ app.delete("/transacoes/:id", async (req, res) => {
       [id]
     );
 
-    if (result.rowCount === 0) {
+    if (result.rowCount === 0) { 
       return res.status(404).json({
         erro: "Transação não encontrada"
       });
@@ -110,41 +154,44 @@ app.delete("/transacoes/:id", async (req, res) => {
 
 //Função nova: Update(PUT) - Atualiza os dados do banco, baseados pelo ID
 app.put("/transacoes/:id", async (req, res) => {
+
   const { id } = req.params;
-  const { descricao, valor, tipo } = req.body;
+  const { descricao, valor, tipo, categoria, metodo_pagamento, observacao } = req.body;
 
-  //  validações básicas
-  if (!descricao || descricao.trim() === "" || valor === undefined || !tipo) {
+  // usa função auxiliar
+  const erroValidacao = validarTransacao(descricao, valor, tipo);
+
+  if (erroValidacao) {
     return res.status(400).json({
-      erro: "Descrição, valor e tipo são obrigatórios"
+      erro: erroValidacao
     });
   }
 
-  if (tipo !== "entrada" && tipo !== "saida") {
+  // valida categoria
+  if (!categoria || categoria.trim() === "") {
     return res.status(400).json({
-      erro: "Tipo deve ser 'entrada' ou 'saida'"
+      erro: "Categoria é obrigatória"
     });
   }
 
-  // conversão do valor (igual ao POST)
+  // converte valor
   const valorNumerico = Number(valor);
-
-  if (isNaN(valorNumerico)) {
-    return res.status(400).json({
-      erro: "Valor inválido"
-    });
-  }
 
   try {
     const result = await pool.query(
       `UPDATE transacoes
-       SET descricao = $1, valor = $2, tipo = $3
-       WHERE id = $4
+       SET descricao = $1,
+           valor = $2,
+           tipo = $3,
+           categoria = $4,
+           metodo_pagamento = $5,
+           observacao = $6
+       WHERE id = $7
        RETURNING *`,
-      [descricao, valorNumerico, tipo, id]
+      [descricao, valorNumerico, tipo, categoria, id, metodo_pagamento, observacao]
     );
 
-    // ESSENCIAL: verificar se existe
+    // verifica se existe
     if (result.rowCount === 0) {
       return res.status(404).json({
         erro: "Transação não encontrada"
@@ -194,10 +241,10 @@ app.get("/resumo", async (req, res) => {
 app.get("/gasto-categoria", async (req, res) => {
   try {
     const resultado = await pool.query(`
-      SELECT descricao, SUM(valor) as total
+      SELECT categoria, SUM(valor) as total
       FROM transacoes
       WHERE tipo = 'saida'
-      GROUP BY descricao
+      GROUP BY categoria
       ORDER BY total DESC
     `);
 
@@ -343,7 +390,7 @@ app.get("/transacoes/categoria", async (req, res) => {
 
     const resultado = await pool.query(
       `SELECT * FROM transacoes
-       WHERE descricao ILIKE $1
+       WHERE categoria ILIKE $1
        ORDER BY data DESC`,
       [`%${categoria}%`]
     );
