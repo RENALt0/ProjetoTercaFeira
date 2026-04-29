@@ -10,13 +10,16 @@ POST http://localhost:3000/transacoes
 Content-Type: application/json
 
 {
-  "descricao": "Salário",
-  "valor": 3000,
-  "tipo": "entrada"
+  "descricao": "Spore",
+  "categoria": "Jogos",
+  "valor": 40,
+  "tipo": "saida",
+  "metodo_pagamento": "pix",
+  "observacao": "Compra da Semana"
 }
 ###
 
-DELETE http://localhost:3000/transacoes/5
+DELETE http://localhost:3000/transacoes/6
 
 ###
 
@@ -25,6 +28,45 @@ Content-Type: application/json
 
 {
   "descricao": "Salário corrigido",
-  "valor": 3500,
-  "tipo": "entrada"
+  "categoria": "Renda",
+  "valor": 500,
+  "tipo": "saida",
+  "metodo_pagamento": "pix",
+  "observacao": "Salário atualizado"
 }
+
+###
+
+GET http://localhost:3000/gasto-categoria
+
+###
+
+GET http://localhost:3000/media-mensal
+
+###
+
+GET http://localhost:3000/maior-gasto
+
+###
+
+GET http://localhost:3000/menor-gasto
+
+###
+
+GET http://localhost:3000/variacao-mensal
+
+###
+
+GET http://localhost:3000/transacoes/periodo?dataInicio=2026-04-27&dataFim=2026-04-29
+
+###
+
+GET http://localhost:3000/transacoes/categoria?categoria=Eletrônicos
+
+###
+
+GET http://localhost:3000/transacoes/tipo?tipo=saida
+
+###
+
+GET http://localhost:3000/transacoes/valor?min=100&max=1000

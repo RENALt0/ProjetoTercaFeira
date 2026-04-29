@@ -3,17 +3,16 @@ DROP TABLE IF EXISTS transacoes;
 CREATE TABLE transacoes (
     id SERIAL PRIMARY KEY,
     descricao TEXT NOT NULL,
-    valor NUMERIC(10,2) NOT NULL,
+    categoria VARCHAR(50) NOT NULL,
+    valor NUMERIC(10,2) NOT NULL CHECK (valor >= 0),
     tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('entrada', 'saida')),
+    metodo_pagamento VARCHAR(20) CHECK (metodo_pagamento IN ('pix', 'cartao', 'dinheiro')),
+    observacao TEXT,
     data TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- dados iniciais (opcional)
-INSERT INTO transacoes (descricao, valor, tipo)
-VALUES 
-('Salário', 3000, 'entrada'),
-<<<<<<< HEAD
-('Mercado', 200, 'saida');
-=======
-('Mercado', 200, 'saida');
->>>>>>> f66752950d3a328b0079c6248b166506130096b2
+INSERT INTO transacoes (descricao, categoria, valor, tipo, metodo_pagamento, observacao)
+VALUES
+('Salário', 'Renda', 3000, 'entrada', 'pix', 'Salário mensal'),
+('Mercado', 'Alimentação', 200, 'saida', 'cartao', 'Compra inicial');
