@@ -1,18 +1,6 @@
 import express from 'express';
-import pkg from 'pg';
+import pool from './db.js';
 
-const { Pool } = pkg; //vai linkar com o banco de dados
-const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'controle_financeiro', 
-  password: '0666',
-  port: 5432,
-});    //cria a conexão
-
-pool.connect() //teste de conexão com o banco
-  .then(() => console.log("Conectado ao PostgreSQL"))
-  .catch(err => console.error("Erro ao conectar:", err));
 const app = express(); //cria o servidor (sistema que pode receber requisições)
 
 app.use(express.json()); //pega o json que chega e transforma em um objeto java script
@@ -42,7 +30,12 @@ function validarTransacao(descricao, valor, tipo) {
 
   // Converte valor para número
   const valorNumerico = Number(valor);
-
+  
+  // Verifica se é negativo
+  if (valorNumerico < 0) {
+    return "Valor não pode ser negativo";
+  }
+  
   // Verifica se é número válido
   if (isNaN(valorNumerico)) {
     return "Valor inválido";
@@ -127,6 +120,12 @@ app.post("/transacoes", async (req, res) => {
 app.delete("/transacoes/:id", async (req, res) => {
   const { id } = req.params;
 
+  if (isNaN(Number(id))) {
+    return res.status(400).json({
+      erro: "ID inválido"
+    });
+  }
+
   try {
     const result = await pool.query(
       "DELETE FROM transacoes WHERE id = $1 RETURNING *",
@@ -138,6 +137,7 @@ app.delete("/transacoes/:id", async (req, res) => {
         erro: "Transação não encontrada"
       });
     }
+    
 
     res.json({
       mensagem: "Transação deletada com sucesso",
@@ -156,6 +156,12 @@ app.delete("/transacoes/:id", async (req, res) => {
 app.put("/transacoes/:id", async (req, res) => {
 
   const { id } = req.params;
+  if (isNaN(Number(id))) {
+    return res.status(400).json({
+      erro: "ID inválido"
+   });
+  }
+
   const { descricao, valor, tipo, categoria, metodo_pagamento, observacao } = req.body;
 
   // usa função auxiliar
@@ -179,17 +185,25 @@ app.put("/transacoes/:id", async (req, res) => {
 
   try {
     const result = await pool.query(
-      `UPDATE transacoes
-       SET descricao = $1,
-           valor = $2,
-           tipo = $3,
-           categoria = $4,
-           metodo_pagamento = $5,
-           observacao = $6
-       WHERE id = $7
-       RETURNING *`,
-      [descricao, valorNumerico, tipo, categoria, id, metodo_pagamento, observacao]
-    );
+  `UPDATE transacoes
+   SET descricao = $1,
+       valor = $2,
+       tipo = $3,
+       categoria = $4,
+       metodo_pagamento = $5,
+       observacao = $6
+   WHERE id = $7
+   RETURNING *`,
+  [
+    descricao,
+    valorNumerico,
+    tipo,
+    categoria,
+    metodo_pagamento,
+    observacao,
+    id
+  ]
+);
 
     // verifica se existe
     if (result.rowCount === 0) {
@@ -368,9 +382,15 @@ app.get("/transacoes/periodo", async (req, res) => {
   try {
     const { dataInicio, dataFim } = req.query;
 
+    if (!dataInicio || !dataFim) {
+     return res.status(400).json({
+       erro: "dataInicio e dataFim são obrigatórios"
+      });
+    }
+
     const resultado = await pool.query(
       `SELECT * FROM transacoes
-       WHERE data BETWEEN $1 AND $2
+       WHERE data::date BETWEEN $1::date AND $2::date
        ORDER BY data DESC`,
       [dataInicio, dataFim] //Lembrar de atribuir variaveis no front
     );
@@ -387,6 +407,12 @@ app.get("/transacoes/periodo", async (req, res) => {
 app.get("/transacoes/categoria", async (req, res) => {
   try {
     const { categoria } = req.query;
+
+    if (!categoria) {
+      return res.status(400).json({
+        erro: "Categoria é obrigatória"
+      });
+    }
 
     const resultado = await pool.query(
       `SELECT * FROM transacoes
@@ -408,6 +434,12 @@ app.get("/transacoes/tipo", async (req, res) => {
   try {
     const { tipo } = req.query;
 
+    if (tipo !== "entrada" && tipo !== "saida") {
+     return res.status(400).json({
+       erro: "Tipo deve ser 'entrada' ou 'saida'"
+      });
+    }
+
     const resultado = await pool.query(
       `SELECT * FROM transacoes
        WHERE tipo = $1
@@ -428,13 +460,28 @@ app.get("/transacoes/valor", async (req, res) => {
   try {
     const { min, max } = req.query;
 
+    
+
+    if (min === undefined || max === undefined) {
+      return res.status(400).json({
+        erro: "min e max são obrigatórios"
+      });
+    }
+
+    if (isNaN(Number(min)) || isNaN(Number(max))) {
+     return res.status(400).json({
+        erro: "min e max devem ser números"
+      });
+    }
+
+
     const resultado = await pool.query(
       `SELECT * FROM transacoes
        WHERE valor BETWEEN $1 AND $2
        ORDER BY valor DESC`,
       [min, max]
     );
-
+     
     res.json(resultado.rows);
 
   } catch (error) {
