@@ -1,9 +1,11 @@
 import express from 'express';
 import pool from './db.js';
+import cors from 'cors';
 
 const app = express(); //cria o servidor (sistema que pode receber requisições)
-
+app.use(cors()); //permite que o frontend acesse o backend mesmo estando em portas diferentes
 app.use(express.json()); //pega o json que chega e transforma em um objeto java script
+app.use(express.static("Frontend")); // serve arquivos estáticos do frontend pela mesma origem
                         
 /*GET e POST são métodos HTTP fundamentais para troca de dados cliente-servidor. 
 GET recupera informações, anexando parâmetros na URL (limitado, visível, cacheável). 

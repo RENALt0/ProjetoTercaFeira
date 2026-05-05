@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle Financeiro</title>
+  <link rel="stylesheet" href="style.css">
+  
+</head>
+<body>
+
+  <h1>Controle Financeiro</h1>
+
+  <!-- FORMULÁRIO -->
+  <section>
+    <h2>Nova Transação</h2>
+
+    <input type="text" id="descricao" placeholder="Descrição">
+    <input type="text" id="categoria" placeholder="Categoria">
+    <input type="number" id="valor" placeholder="Valor">
+
+    <select id="tipo">
+      <option value="entrada">Entrada</option>
+      <option value="saida">Saída</option>
+    </select>
+
+    <select id="metodo_pagamento">
+      <option value="pix">Pix</option>
+      <option value="cartao">Cartão</option>
+      <option value="dinheiro">Dinheiro</option>
+    </select>
+
+    <input type="text" id="observacao" placeholder="Observação">
+
+    <button onclick="adicionarTransacao()">Adicionar</button>
+  </section>
+
+  <!-- RESUMO -->
+  <section>
+    <h2>Resumo Financeiro</h2>
+    <p id="saldo">Saldo: R$ 0</p>
+    <p id="entradas">Entradas: R$ 0</p>
+    <p id="saidas">Saídas: R$ 0</p>
+  </section>
+
+  <!-- LISTA -->
+  <section>
+    <h2>Transações</h2>
+    <ul id="listaTransacoes"></ul>
+  </section>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
