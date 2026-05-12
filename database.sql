@@ -6,13 +6,8 @@ CREATE TABLE transacoes (
     categoria VARCHAR(50) NOT NULL,
     valor NUMERIC(10,2) NOT NULL CHECK (valor >= 0),
     tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('entrada', 'saida')),
-    metodo_pagamento VARCHAR(20) CHECK (metodo_pagamento IN ('pix', 'cartao', 'dinheiro')),
+    metodo_pagamento VARCHAR(20)
+      CHECK (metodo_pagamento IN ('pix', 'cartao', 'dinheiro')),
     observacao TEXT,
     data TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
--- dados iniciais (opcional)
-INSERT INTO transacoes (descricao, categoria, valor, tipo, metodo_pagamento, observacao)
-VALUES
-('Salário', 'Renda', 3000, 'entrada', 'pix', 'Salário mensal'),
-('Mercado', 'Alimentação', 200, 'saida', 'cartao', 'Compra inicial');
