@@ -2,13 +2,20 @@ import pkg from 'pg';
 
 const { Pool } = pkg;
 
-const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'controle_financeiro',
-  password: '0666',
-  port: 5432,
-});
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    })
+  : new Pool({
+      user: 'postgres',
+      host: 'localhost',
+      database: 'controle_financeiro',
+      password: '0666',
+      port: 5432,
+    });
 
 // Teste de conexão
 pool.connect()
