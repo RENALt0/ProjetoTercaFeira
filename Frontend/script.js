@@ -1,6 +1,7 @@
 const API_URL = "http://localhost:3000";
+let editandoId = null;
 
-// FUNÇÃO PARA ADICIONAR TRANSAÇÃO
+// ADICIONAR OU ATUALIZAR
 async function adicionarTransacao() {
   const descricao = document.getElementById("descricao").value;
   const categoria = document.getElementById("categoria").value;
@@ -9,9 +10,14 @@ async function adicionarTransacao() {
   const metodo_pagamento = document.getElementById("metodo_pagamento").value;
   const observacao = document.getElementById("observacao").value;
 
+  const metodo = editandoId ? "PUT" : "POST";
+  const url = editandoId
+    ? `${API_URL}/transacoes/${editandoId}`
+    : `${API_URL}/transacoes`;
+
   try {
-    const response = await fetch(`${API_URL}/transacoes`, {
-      method: "POST",
+    const response = await fetch(url, {
+      method: metodo,
       headers: {
         "Content-Type": "application/json"
       },
@@ -32,9 +38,11 @@ async function adicionarTransacao() {
       return;
     }
 
-    alert("Transação adicionada!");
+    alert(editandoId ? "Transação atualizada!" : "Transação adicionada!");
 
     limparCampos();
+    editandoId = null;
+
     carregarTransacoes();
     carregarResumo();
 
@@ -44,6 +52,8 @@ async function adicionarTransacao() {
   }
 }
 
+
+// LISTAR TRANSAÇÕES
 async function carregarTransacoes() {
   try {
     const response = await fetch(`${API_URL}/transacoes`);
@@ -53,21 +63,47 @@ async function carregarTransacoes() {
     lista.innerHTML = "";
 
     transacoes.forEach(transacao => {
-      const item = document.createElement("li");
-      item.textContent = `${transacao.descricao} - ${transacao.categoria} - R$ ${transacao.valor} - ${transacao.tipo} - ${transacao.metodo_pagamento}`;
-      lista.appendChild(item);
+      const linha = document.createElement("tr");
+
+      linha.innerHTML = `
+        <td>${transacao.descricao}</td>
+        <td>${transacao.categoria}</td>
+        <td>R$ ${transacao.valor}</td>
+        <td>${transacao.tipo}</td>
+        <td>${transacao.metodo_pagamento}</td>
+        <td>
+          <button onclick="editarTransacao(${transacao.id})">Editar</button>
+          <button onclick="deletarTransacao(${transacao.id})">Excluir</button>
+        </td>
+      `;
+
+      lista.appendChild(linha);
     });
+
   } catch (error) {
     console.error(error);
   }
 }
 
+
+// RESUMO
 async function carregarResumo() {
   try {
     const response = await fetch(`${API_URL}/resumo`);
     const resumo = await response.json();
 
-    document.getElementById("saldo").textContent = `Saldo: R$ ${resumo.saldo}`;
+    const saldoEl = document.getElementById("saldo");
+
+    saldoEl.textContent = `Saldo: R$ ${resumo.saldo}`;
+
+    saldoEl.classList.remove("positivo", "negativo");
+
+
+    if (resumo.saldo < 0) {
+     saldoEl.classList.add("negativo");
+    } else {
+     saldoEl.classList.add("positivo");
+    }
     document.getElementById("entradas").textContent = `Entradas: R$ ${resumo.entradas}`;
     document.getElementById("saidas").textContent = `Saídas: R$ ${resumo.saidas}`;
   } catch (error) {
@@ -75,17 +111,77 @@ async function carregarResumo() {
   }
 }
 
+
+// LIMPAR FORM
 function limparCampos() {
   document.getElementById("descricao").value = "";
   document.getElementById("categoria").value = "";
   document.getElementById("valor").value = "";
   document.getElementById("observacao").value = "";
+
+  editandoId = null;
 }
 
-window.adicionarTransacao = adicionarTransacao;
 
+// DELETAR
+async function deletarTransacao(id) {
+  const confirmar = confirm("Tem certeza que deseja deletar?");
+  if (!confirmar) return;
+
+  try {
+    const response = await fetch(`${API_URL}/transacoes/${id}`, {
+      method: "DELETE"
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.erro);
+      return;
+    }
+
+    alert("Transação deletada!");
+
+    carregarTransacoes();
+    carregarResumo();
+
+  } catch (error) {
+    console.error(error);
+    alert("Erro ao deletar");
+  }
+}
+
+// EDITAR (CARREGA NO FORM)
+async function editarTransacao(id) {
+  try {
+    const response = await fetch(`${API_URL}/transacoes`);
+    const transacoes = await response.json();
+
+    const t = transacoes.find(tr => tr.id === id);
+
+    document.getElementById("descricao").value = t.descricao;
+    document.getElementById("categoria").value = t.categoria;
+    document.getElementById("valor").value = t.valor;
+    document.getElementById("tipo").value = t.tipo;
+    document.getElementById("metodo_pagamento").value = t.metodo_pagamento;
+    document.getElementById("observacao").value = t.observacao;
+
+    editandoId = id;
+
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+
+// GLOBAL (HTML)
+window.adicionarTransacao = adicionarTransacao;
+window.deletarTransacao = deletarTransacao;
+window.editarTransacao = editarTransacao;
+
+
+// INIT
 window.addEventListener("DOMContentLoaded", () => {
   carregarTransacoes();
   carregarResumo();
 });
-
