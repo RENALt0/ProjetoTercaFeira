@@ -2,6 +2,10 @@ GET http://localhost:3000/transacoes
 
 ###
 
+GET http://localhost:3000/insights
+
+###
+
 GET http://localhost:3000/resumo
 
 ###
@@ -19,7 +23,7 @@ Content-Type: application/json
 }
 ###
 
-DELETE http://localhost:3000/transacoes/6
+DELETE http://localhost:3000/transacoes/1
 
 ###
 

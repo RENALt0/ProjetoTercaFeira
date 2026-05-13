@@ -492,10 +492,100 @@ app.get("/transacoes/valor", async (req, res) => {
   }
 });
 
+// ENDPOINT: INSIGHTS FINANCEIROS
+app.get("/insights", async (req, res) => {
+  try {
+
+    // =========================
+    // BUSCA TOTAL DE ENTRADAS
+    // =========================
+    const entradasResult = await pool.query(`
+      SELECT SUM(valor) AS total
+      FROM transacoes
+      WHERE tipo = 'entrada'
+    `);
+
+    // =========================
+    // BUSCA TOTAL DE SAÍDAS
+    // =========================
+    const saidasResult = await pool.query(`
+      SELECT SUM(valor) AS total
+      FROM transacoes
+      WHERE tipo = 'saida'
+    `);
+
+    // =========================
+    // BUSCA CATEGORIA COM MAIOR GASTO
+    // =========================
+    const categoriaResult = await pool.query(`
+      SELECT categoria, SUM(valor) AS total
+      FROM transacoes
+      WHERE tipo = 'saida'
+      GROUP BY categoria
+      ORDER BY total DESC
+      LIMIT 1
+    `);
+
+    // =========================
+    // CONVERTE VALORES
+    // =========================
+    const entradas = Number(entradasResult.rows[0].total) || 0;
+    const saidas = Number(saidasResult.rows[0].total) || 0;
+
+    // saldo
+    const saldo = entradas - saidas;
+
+    // pega categoria principal
+    const categoriaTop = categoriaResult.rows[0];
+
+    // =========================
+    // ARRAY DE INSIGHTS
+    // =========================
+    const insights = [];
+
+    // insight saldo
+    if (saldo < 0) {
+      insights.push("Seu saldo está negativo.");
+    } else if (saldo > 0) {
+      insights.push("Seu saldo está positivo.");
+    } else {
+      insights.push("Seu saldo está zerado.");
+    }
+
+    // insight gastos
+    if (saidas > entradas) {
+      insights.push("Você está gastando mais do que ganha.");
+    }
+
+    // insight categoria principal
+    if (categoriaTop) {
+      insights.push(
+        `Sua categoria com maior gasto é '${categoriaTop.categoria}' com R$ ${Number(categoriaTop.total).toFixed(2)}`
+      );
+    }
+
+    // =========================
+    // RESPOSTA FINAL
+    // =========================
+    res.json({
+      saldo,
+      entradas,
+      saidas,
+      insights
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      erro: "Erro ao gerar insights"
+    });
+  }
+});
 
 // LIGA O SERVIDOR (SEMPRE POR ÚLTIMO)
-const PORT = process.env.PORT || 3000;
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });

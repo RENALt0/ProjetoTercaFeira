@@ -10,6 +10,9 @@
 <body>
 
   <h1>Controle Financeiro</h1>
+  <section>
+    <p>Bem-vindo ao seu controle financeiro pessoal! Aqui você pode adicionar suas transações, acompanhar seu saldo e visualizar um resumo das suas finanças. Use o formulário abaixo para registrar suas entradas e saídas, e mantenha seu orçamento sempre atualizado!</p>
+  </section>
 
   <!-- FORMULÁRIO -->
   <section>
@@ -46,19 +49,21 @@
   <!-- LISTA -->
   <section>
     <h2>Transações</h2>
-    <table border="1">
-  <thead>
-    <tr>
-      <th>Descrição</th>
-      <th>Categoria</th>
-      <th>Valor</th>
-      <th>Tipo</th>
-      <th>Método</th>
-      <th>Ações</th>
-    </tr>
-  </thead>
-  <tbody id="listaTransacoes"></tbody>
-</table>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Descrição</th>
+            <th>Categoria</th>
+            <th>Valor</th>
+            <th>Tipo</th>
+            <th>Método</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="listaTransacoes"></tbody>
+      </table>
+    </div>
   </section>
 
   <script type="module" src="script.js"></script>

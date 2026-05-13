@@ -1,6 +1,15 @@
 const API_URL = "https://projetotercafeira.onrender.com";
 let editandoId = null;
 
+function formatarValor(valor) {
+  const numero = Number(valor);
+  if (Number.isNaN(numero)) return "0,00";
+  return numero.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
 // ADICIONAR OU ATUALIZAR
 async function adicionarTransacao() {
   const descricao = document.getElementById("descricao").value;
@@ -68,7 +77,7 @@ async function carregarTransacoes() {
       linha.innerHTML = `
         <td>${transacao.descricao}</td>
         <td>${transacao.categoria}</td>
-        <td>R$ ${transacao.valor}</td>
+        <td>R$ ${formatarValor(transacao.valor)}</td>
         <td>${transacao.tipo}</td>
         <td>${transacao.metodo_pagamento}</td>
         <td>
@@ -94,7 +103,7 @@ async function carregarResumo() {
 
     const saldoEl = document.getElementById("saldo");
 
-    saldoEl.textContent = `Saldo: R$ ${resumo.saldo}`;
+    saldoEl.textContent = `Saldo: R$ ${formatarValor(resumo.saldo)}`;
 
     saldoEl.classList.remove("positivo", "negativo");
 
@@ -104,8 +113,8 @@ async function carregarResumo() {
     } else {
      saldoEl.classList.add("positivo");
     }
-    document.getElementById("entradas").textContent = `Entradas: R$ ${resumo.entradas}`;
-    document.getElementById("saidas").textContent = `Saídas: R$ ${resumo.saidas}`;
+    document.getElementById("entradas").textContent = `Entradas: R$ ${formatarValor(resumo.entradas)}`;
+    document.getElementById("saidas").textContent = `Saídas: R$ ${formatarValor(resumo.saidas)}`;
   } catch (error) {
     console.error(error);
   }
