@@ -1,4 +1,4 @@
-const API_URL = "https://projetotercafeira.onrender.com";
+const API_URL = "http://localhost:3000";
 let editandoId = null;
 
 function formatarValor(valor) {
@@ -54,6 +54,7 @@ async function adicionarTransacao() {
 
     carregarTransacoes();
     carregarResumo();
+    carregarGraficoCategorias();
 
   } catch (error) {
     console.error(error);
@@ -153,7 +154,7 @@ async function deletarTransacao(id) {
 
     carregarTransacoes();
     carregarResumo();
-
+    carregarGraficoCategorias();
   } catch (error) {
     console.error(error);
     alert("Erro ao deletar");
@@ -182,15 +183,177 @@ async function editarTransacao(id) {
   }
 }
 
+// CHAT SIMPLES COM IA
+function formatarRespostaIA(texto) {
+  const safeText = texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  const formatInline = content =>
+    content
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>");
+
+  return safeText
+    .trim()
+    .split(/\n\s*\n/)
+    .filter(Boolean)
+    .map(block => {
+      const lines = block.split(/\n/).map(line => line.trim()).filter(Boolean);
+      if (lines.every(line => line.startsWith("- "))) {
+        const items = lines.map(line => `<li>${formatInline(line.slice(2))}</li>`).join("");
+        return `<ul>${items}</ul>`;
+      }
+      return `<p>${lines.map(line => formatInline(line)).join("<br>")}</p>`;
+    })
+    .join("");
+}
+
+function adicionarMensagem(texto, remetente) {
+  const chatWindow = document.getElementById("chatWindow");
+  const mensagem = document.createElement("div");
+  mensagem.className = `chat-message ${remetente}`;
+  mensagem.innerHTML = remetente === "bot" ? formatarRespostaIA(texto) : texto.replace(/\n/g, "<br>");
+  chatWindow.appendChild(mensagem);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+async function responderPergunta(pergunta) {
+
+  try {
+
+    const response = await fetch(`${API_URL}/chat`, {
+
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify({
+        pergunta
+      })
+    });
+
+    const data = await response.json();
+
+    return data.resposta;
+
+  } catch (error) {
+
+    console.error(error);
+
+    return "Erro ao conectar com a IA.";
+  }
+}
+async function enviarPergunta() {
+  const input = document.getElementById("chatInput");
+  const texto = input.value.trim();
+  if (!texto) return;
+
+  adicionarMensagem(texto, "user");
+  input.value = "";
+
+  const resposta = await responderPergunta(texto);
+
+  adicionarMensagem(resposta, "bot");
+}
+
+let graficoCategorias = null;
+
+async function carregarGraficoCategorias() {
+
+  try {
+
+    const response = await fetch(`${API_URL}/gasto-categoria`);
+
+    const dados = await response.json();
+
+    const categorias = dados.categorias.map(item => item.categoria);
+
+    const valores = dados.categorias.map(item => item.total);
+
+    const ctx = document
+      .getElementById("graficoCategorias")
+      .getContext("2d");
+
+    // evita criar gráfico duplicado
+    if (graficoCategorias) {
+      graficoCategorias.destroy();
+    }
+
+    graficoCategorias = new Chart(ctx, {
+
+      type: "doughnut",
+
+      data: {
+        labels: categorias,
+
+        datasets: [{
+                label: "Gastos",
+
+                data: valores,
+
+          backgroundColor: [
+            "#9036f7",
+            "#e6a94f",
+            "#50dddd",
+            "#45c465",
+            "#ca39ab",
+            "#f12a2a",
+            "#170da8"
+          ],
+
+          borderColor: "#ffffffbd",
+
+          borderWidth: 3
+        }]
+      },
+
+      options: {
+
+        responsive: true,
+
+        plugins: {
+
+          legend: {
+            labels: {
+              color: "white"
+            }
+          }
+
+        }
+
+      }
+
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+}
 
 // GLOBAL (HTML)
 window.adicionarTransacao = adicionarTransacao;
 window.deletarTransacao = deletarTransacao;
 window.editarTransacao = editarTransacao;
-
+window.enviarPergunta = enviarPergunta;
 
 // INIT
 window.addEventListener("DOMContentLoaded", () => {
   carregarTransacoes();
   carregarResumo();
+  carregarGraficoCategorias();
+  const chatInput = document.getElementById("chatInput");
+  if (chatInput) {
+    chatInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        enviarPergunta();
+      }
+    });
+  }
 });

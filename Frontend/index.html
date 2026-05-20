@@ -14,6 +14,17 @@
     <p>Bem-vindo ao seu controle financeiro pessoal! Aqui você pode adicionar suas transações, acompanhar seu saldo e visualizar um resumo das suas finanças. Use o formulário abaixo para registrar suas entradas e saídas, e mantenha seu orçamento sempre atualizado!</p>
   </section>
 
+  <section class="chat-container">
+    <h2>Chatbot de Suporte</h2>
+    <div id="chatWindow" class="chat-window">
+      <div class="chat-message bot">Olá! Pergunte algo sobre o seu financeiro ou peça ajuda. Esta é uma interface de chat de exemplo.</div>
+    </div>
+    <div class="chat-input-group">
+      <input type="text" id="chatInput" placeholder="Digite sua pergunta aqui...">
+      <button type="button" onclick="enviarPergunta()">Enviar</button>
+    </div>
+  </section>
+
   <!-- FORMULÁRIO -->
   <section>
     <h2>Nova Transação</h2>
@@ -46,7 +57,17 @@
     <p id="saidas">Saídas: R$ 0</p>
   </section>
 
-  <!-- LISTA -->
+  <section class="grafico-section">
+
+    <h2>Gastos por Categoria</h2>
+
+    <div class="grafico-container">
+      <canvas id="graficoCategorias"></canvas>
+    </div>
+
+  </section>
+
+    <!-- LISTA -->
   <section>
     <h2>Transações</h2>
     <div class="table-wrapper">
@@ -65,7 +86,7 @@
       </table>
     </div>
   </section>
-
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Adiciona a biblioteca Chart.js (Grafico de Pizza) -->
   <script type="module" src="script.js"></script>
 
   

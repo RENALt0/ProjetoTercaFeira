@@ -14,9 +14,9 @@ POST http://localhost:3000/transacoes
 Content-Type: application/json
 
 {
-  "descricao": "Spore",
-  "categoria": "Jogos",
-  "valor": 40,
+  "descricao": "Nuggets",
+  "categoria": "Eletrônicos",
+  "valor": 14,
   "tipo": "saida",
   "metodo_pagamento": "pix",
   "observacao": "Compra da Semana"
@@ -27,13 +27,13 @@ DELETE http://localhost:3000/transacoes/1
 
 ###
 
-PUT http://localhost:3000/transacoes/2
+PUT http://localhost:3000/transacoes/6
 Content-Type: application/json
 
 {
-  "descricao": "Salário corrigido",
-  "categoria": "Renda",
-  "valor": 500,
+  "descricao": "Nuggets",
+  "categoria": "Comida",
+  "valor": 14,
   "tipo": "saida",
   "metodo_pagamento": "pix",
   "observacao": "Salário atualizado"
@@ -74,3 +74,7 @@ GET http://localhost:3000/transacoes/tipo?tipo=saida
 ###
 
 GET http://localhost:3000/transacoes/valor?min=100&max=1000
+
+###
+
+GET http://localhost:3000/dashboard

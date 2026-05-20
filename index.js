@@ -1,6 +1,18 @@
 import express from 'express';
 import pool from './db.js';
 import cors from 'cors';
+import dotenv from 'dotenv';
+import { GoogleGenerativeAI } from "@google/generative-ai";  //Importa a biblioteca de IA generativa do Google
+
+// Carrega variáveis de ambiente do arquivo .env, se existir
+dotenv.config();
+
+const apiKey = process.env.GOOGLE_API_KEY;
+if (!apiKey) {
+  console.error('Erro: variável de ambiente GOOGLE_API_KEY não encontrada. Defina a chave no seu arquivo .env ou nas variáveis de ambiente do serviço.');
+  process.exit(1);
+}
+const genAI = new GoogleGenerativeAI(apiKey);
 
 const app = express(); //cria o servidor (sistema que pode receber requisições)
 app.use(cors()); //permite que o frontend acesse o backend mesmo estando em portas diferentes
@@ -583,9 +595,331 @@ app.get("/insights", async (req, res) => {
   }
 });
 
+
+// ENDPOINT: DASHBOARD COMPLETO
+app.get("/dashboard", async (req, res) => {
+  try {
+
+    // =========================
+    // RESUMO
+    // =========================
+    const entradasResult = await pool.query(`
+      SELECT SUM(valor) AS total
+      FROM transacoes
+      WHERE tipo = 'entrada'
+    `);
+
+    const saidasResult = await pool.query(`
+      SELECT SUM(valor) AS total
+      FROM transacoes
+      WHERE tipo = 'saida'
+    `);
+
+    const entradas = Number(entradasResult.rows[0].total) || 0;
+    const saidas = Number(saidasResult.rows[0].total) || 0;
+    const saldo = entradas - saidas;
+
+    // =========================
+    // MAIOR GASTO
+    // =========================
+    const maiorGastoResult = await pool.query(`
+      SELECT *
+      FROM transacoes
+      WHERE tipo = 'saida'
+      ORDER BY valor DESC
+      LIMIT 1
+    `);
+
+    // =========================
+    // MENOR GASTO
+    // =========================
+    const menorGastoResult = await pool.query(`
+      SELECT *
+      FROM transacoes
+      WHERE tipo = 'saida'
+      ORDER BY valor ASC
+      LIMIT 1
+    `);
+
+    // =========================
+    // GASTOS POR CATEGORIA
+    // =========================
+    const categoriasResult = await pool.query(`
+      SELECT categoria, SUM(valor) AS total
+      FROM transacoes
+      WHERE tipo = 'saida'
+      GROUP BY categoria
+      ORDER BY total DESC
+    `);
+
+    // =========================
+    // VARIAÇÃO MENSAL
+    // =========================
+    const variacaoResult = await pool.query(`
+      SELECT 
+        DATE_TRUNC('month', data) AS mes,
+        SUM(valor) AS total
+      FROM transacoes
+      WHERE tipo = 'saida'
+      GROUP BY mes
+      ORDER BY mes
+    `);
+
+    // =========================
+    // INSIGHTS
+    // =========================
+    const insights = [];
+
+    if (saldo < 0) {
+      insights.push("Seu saldo está negativo.");
+    } else {
+      insights.push("Seu saldo está positivo.");
+    }
+
+    if (saidas > entradas) {
+      insights.push("Você está gastando mais do que ganha.");
+    }
+
+    const categoriaTop = categoriasResult.rows[0];
+
+    if (categoriaTop) {
+      insights.push(
+        `Sua categoria com maior gasto é '${categoriaTop.categoria}'`
+      );
+    }
+
+    // =========================
+    // RESPOSTA FINAL
+    // =========================
+    res.json({
+      resumo: {
+        saldo,
+        entradas,
+        saidas
+      },
+
+      maiorGasto: maiorGastoResult.rows[0] || {},
+
+      menorGasto: menorGastoResult.rows[0] || {},
+
+      gastosPorCategoria: categoriasResult.rows.map(row => ({
+        categoria: row.categoria,
+        total: Number(row.total)
+      })),
+
+      variacaoMensal: variacaoResult.rows.map(row => ({
+        mes: row.mes,
+        total: Number(row.total)
+      })),
+
+      insights
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      erro: "Erro ao carregar dashboard"
+    });
+  }
+});
+
+
+// ENDPOINT: CHAT IA
+app.post("/chat", async (req, res) => {
+
+  try {
+
+    // =========================
+    // PERGUNTA DO USUÁRIO
+    // =========================
+
+    const { pergunta } = req.body;
+
+    // =========================
+    // BUSCA DADOS FINANCEIROS
+    // =========================
+
+    const entradasResult = await pool.query(`
+      SELECT SUM(valor) AS total
+      FROM transacoes
+      WHERE tipo = 'entrada'
+    `);
+
+    const saidasResult = await pool.query(`
+      SELECT SUM(valor) AS total
+      FROM transacoes
+      WHERE tipo = 'saida'
+    `);
+
+    const categoriaResult = await pool.query(`
+      SELECT categoria, SUM(valor) AS total
+      FROM transacoes
+      WHERE tipo = 'saida'
+      GROUP BY categoria
+      ORDER BY total DESC
+      LIMIT 1
+    `);
+
+    // =========================
+    // CONVERSÕES
+    // =========================
+
+    const entradas =
+      Number(entradasResult.rows[0].total) || 0;
+
+    const saidas =
+      Number(saidasResult.rows[0].total) || 0;
+
+    const saldo = entradas - saidas;
+
+    const percentualGasto =
+      entradas > 0
+        ? ((saidas / entradas) * 100).toFixed(1)
+        : 0;
+
+    const categoriaTop = categoriaResult.rows[0];
+
+    // =========================
+    // MODELO GEMINI
+    // =========================
+
+    // Use um modelo compatível com a versão da API. Se o seu projeto
+    // tiver acesso ao Gemini via essa biblioteca, ajuste aqui para o
+    // modelo correto. Como fallback, usamos um modelo de texto compatível
+    // com a API v1beta.
+    // Seleciona um modelo disponível retornado pela API de modelos
+    // Usa a versão estável da API (v1) para modelos mais recentes
+    const model = genAI.getGenerativeModel({
+      model: "models/gemini-1.5-flash"
+    }, { apiVersion: "v1" });
+
+    // =========================
+    // CONTEXTO DA IA
+    // =========================
+
+    const contexto = `
+Você é um assistente financeiro inteligente.
+
+Seu papel é:
+- responder dúvidas financeiras
+- ajudar o usuário a entender suas finanças
+- analisar os dados financeiros abaixo
+- explicar conceitos financeiros de forma simples
+- dar recomendações úteis
+- responder de forma amigável e objetiva
+
+Dados financeiros atuais do usuário:
+
+Entradas totais: R$ ${entradas}
+Saídas totais: R$ ${saidas}
+Saldo atual: R$ ${saldo}
+Percentual gasto da renda: ${percentualGasto}%
+
+Categoria com maior gasto:
+${categoriaTop?.categoria || "Nenhuma"}
+
+Valor gasto na principal categoria:
+R$ ${categoriaTop?.total || 0}
+
+IMPORTANTE:
+- Responda em português brasileiro.
+- Responda de forma organizada.
+- Use parágrafos curtos.
+- Quando fizer recomendações, use tópicos.
+- Responda como um assistente financeiro de aplicativo moderno.
+- Evite respostas longas demais.
+- Seja conversacional.
+- Não escreva relatórios extensos.
+- Priorize clareza visual.
+- Não invente dados inexistentes.
+- Se o usuário fizer perguntas gerais sobre finanças, responda normalmente.
+- Se o usuário perguntar sobre os próprios dados financeiros, use os dados acima.
+`;
+
+    // =========================
+    // PROMPT FINAL
+    // =========================
+
+    const prompt = `
+${contexto}
+
+Pergunta do usuário:
+"${pergunta}"
+`;
+
+    // =========================
+    // RESPOSTA GEMINI
+    // =========================
+
+    console.log("Enviando prompt para o modelo generativo...");
+
+    let resposta = "";
+
+    try {
+      const result = await model.generateContent(prompt);
+      console.log("Resposta recebida:", result);
+      resposta = result?.response?.text?.() || "";
+      console.log("Texto extraído:", resposta);
+    } catch (errModel) {
+      // Log detalhado para diagnóstico
+      const modelErr = {
+        message: errModel?.message,
+        status: errModel?.status,
+        statusText: errModel?.statusText,
+        details: errModel?.errorDetails
+      };
+      console.error("Erro ao chamar modelo generativo:", modelErr);
+
+      // Fallback amigável usando os dados financeiros já disponíveis
+      resposta = `Desculpe, não foi possível acessar o serviço de IA no momento.\n\nResumo rápido:\n- **Entradas:** R$ ${entradas}\n- **Saídas:** R$ ${saidas}\n- **Saldo:** R$ ${saldo}\n\nTente novamente daqui a alguns minutos.`;
+    }
+
+    // =========================
+    // RESPOSTA FINAL
+    // =========================
+
+    res.json({
+      resposta
+    });
+
+  } catch (error) {
+
+    console.error("ERRO NO CHAT IA:", error);
+
+    res.status(500).json({
+      erro: "Erro no chat IA",
+      detalhes: error.message
+    });
+  }
+});
+
+
+// ENDPOINT: LISTAR MODELOS DISPONÍVEIS (auxiliar para debug/config)
+app.get('/models', async (req, res) => {
+  try {
+    const baseUrl = 'https://generativelanguage.googleapis.com';
+    // Tenta a versão estável v1 para listagem de modelos
+    const url = `${baseUrl}/v1/models`;
+
+    const fetchRes = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': genAI.apiKey || ''
+      }
+    });
+
+    const json = await fetchRes.json();
+    return res.json(json);
+  } catch (err) {
+    console.error('Erro ao listar modelos:', err);
+    return res.status(500).json({ erro: 'Não foi possível listar modelos', detalhes: err.message });
+  }
+});
+
+
 // LIGA O SERVIDOR (SEMPRE POR ÚLTIMO)
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+app.listen(PORT, () => console.log('Servidor rodando na porta http://localhost:3000'));
