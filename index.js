@@ -730,10 +730,6 @@ app.post("/chat", async (req, res) => {
 
   try {
 
-    // =========================
-    // PERGUNTA DO USUÁRIO
-    // =========================
-
     const { pergunta } = req.body;
 
     // =========================
@@ -781,115 +777,152 @@ app.post("/chat", async (req, res) => {
     const categoriaTop = categoriaResult.rows[0];
 
     // =========================
-    // MODELO GEMINI
+    // PERGUNTA
     // =========================
 
-    // Use um modelo compatível com a versão da API. Se o seu projeto
-    // tiver acesso ao Gemini via essa biblioteca, ajuste aqui para o
-    // modelo correto. Como fallback, usamos um modelo de texto compatível
-    // com a API v1beta.
-    // Seleciona um modelo disponível retornado pela API de modelos
-    // Usa a versão estável da API (v1) para modelos mais recentes
-    const model = genAI.getGenerativeModel({
-      model: "models/gemini-1.5-flash"
-    }, { apiVersion: "v1" });
+    const perguntaLower =
+      pergunta.toLowerCase();
 
     // =========================
-    // CONTEXTO DA IA
+    // RESPOSTAS LOCAIS
     // =========================
 
-    const contexto = `
-Você é um assistente financeiro inteligente.
+    // SALDO
+    if (
+      perguntaLower.includes("saldo")
+    ) {
 
-Seu papel é:
-- responder dúvidas financeiras
-- ajudar o usuário a entender suas finanças
-- analisar os dados financeiros abaixo
-- explicar conceitos financeiros de forma simples
-- dar recomendações úteis
-- responder de forma amigável e objetiva
+      return res.json({
+        resposta: `
+## Seu saldo atual
 
-Dados financeiros atuais do usuário:
+💰 Entradas: R$ ${entradas}
 
-Entradas totais: R$ ${entradas}
-Saídas totais: R$ ${saidas}
-Saldo atual: R$ ${saldo}
-Percentual gasto da renda: ${percentualGasto}%
+💸 Saídas: R$ ${saidas}
 
-Categoria com maior gasto:
+📊 Saldo final: R$ ${saldo}
+`
+      });
+    }
+
+    // GASTOS
+    if (
+      perguntaLower.includes("gasto") ||
+      perguntaLower.includes("gastando")
+    ) {
+
+      return res.json({
+        resposta: `
+## Análise dos gastos
+
+Você está gastando aproximadamente:
+
+### ${percentualGasto}% da sua renda
+
+${
+  percentualGasto > 80
+    ? "⚠️ Seus gastos estão altos."
+    : "✅ Seus gastos parecem controlados."
+}
+`
+      });
+    }
+
+    // CATEGORIA
+    if (
+      perguntaLower.includes("categoria") ||
+      perguntaLower.includes("maior gasto")
+    ) {
+
+      return res.json({
+        resposta: `
+## Categoria com maior gasto
+
+📂 Categoria:
 ${categoriaTop?.categoria || "Nenhuma"}
 
-Valor gasto na principal categoria:
+💵 Valor:
 R$ ${categoriaTop?.total || 0}
+`
+      });
+    }
 
-IMPORTANTE:
-- Responda em português brasileiro.
-- Responda de forma organizada.
-- Use parágrafos curtos.
-- Quando fizer recomendações, use tópicos.
-- Responda como um assistente financeiro de aplicativo moderno.
-- Evite respostas longas demais.
-- Seja conversacional.
-- Não escreva relatórios extensos.
-- Priorize clareza visual.
-- Não invente dados inexistentes.
-- Se o usuário fizer perguntas gerais sobre finanças, responda normalmente.
-- Se o usuário perguntar sobre os próprios dados financeiros, use os dados acima.
+    // =========================
+    // IA SOMENTE SE NECESSÁRIO
+    // =========================
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash"
+    });
+
+    const contexto = `
+Você é um assistente financeiro.
+
+Dados do usuário:
+
+Entradas: R$ ${entradas}
+Saídas: R$ ${saidas}
+Saldo: R$ ${saldo}
+Percentual gasto: ${percentualGasto}%
+
+Maior categoria:
+${categoriaTop?.categoria || "Nenhuma"}
+
+Responda em português brasileiro.
+Seja amigável.
+Use markdown.
+Não escreva textos enormes.
 `;
-
-    // =========================
-    // PROMPT FINAL
-    // =========================
 
     const prompt = `
 ${contexto}
 
-Pergunta do usuário:
-"${pergunta}"
+Pergunta:
+${pergunta}
 `;
 
     // =========================
-    // RESPOSTA GEMINI
+    // GEMINI
     // =========================
-
-    console.log("Enviando prompt para o modelo generativo...");
-
-    let resposta = "";
 
     try {
-      const result = await model.generateContent(prompt);
-      console.log("Resposta recebida:", result);
-      resposta = result?.response?.text?.() || "";
-      console.log("Texto extraído:", resposta);
-    } catch (errModel) {
-      // Log detalhado para diagnóstico
-      const modelErr = {
-        message: errModel?.message,
-        status: errModel?.status,
-        statusText: errModel?.statusText,
-        details: errModel?.errorDetails
-      };
-      console.error("Erro ao chamar modelo generativo:", modelErr);
 
-      // Fallback amigável usando os dados financeiros já disponíveis
-      resposta = `Desculpe, não foi possível acessar o serviço de IA no momento.\n\nResumo rápido:\n- **Entradas:** R$ ${entradas}\n- **Saídas:** R$ ${saidas}\n- **Saldo:** R$ ${saldo}\n\nTente novamente daqui a alguns minutos.`;
+      const result =
+        await model.generateContent(prompt);
+
+      const resposta =
+        result.response.text();
+
+      return res.json({
+        resposta
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      // fallback local
+      return res.json({
+        resposta: `
+⚠️ A IA está temporariamente indisponível.
+
+## Resumo financeiro
+
+💰 Entradas: R$ ${entradas}
+
+💸 Saídas: R$ ${saidas}
+
+📊 Saldo: R$ ${saldo}
+`
+      });
     }
-
-    // =========================
-    // RESPOSTA FINAL
-    // =========================
-
-    res.json({
-      resposta
-    });
 
   } catch (error) {
 
-    console.error("ERRO NO CHAT IA:", error);
+    console.error(error);
 
     res.status(500).json({
-      erro: "Erro no chat IA",
-      detalhes: error.message
+      erro: "Erro no chat"
     });
   }
 });
@@ -899,17 +932,16 @@ Pergunta do usuário:
 app.get('/models', async (req, res) => {
   try {
     const baseUrl = 'https://generativelanguage.googleapis.com';
-    // Tenta a versão estável v1 para listagem de modelos
     const url = `${baseUrl}/v1/models`;
 
     const fetchRes = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': genAI.apiKey || ''
+        'x-goog-api-key': apiKey
       }
     });
-
+git 
     const json = await fetchRes.json();
     return res.json(json);
   } catch (err) {
