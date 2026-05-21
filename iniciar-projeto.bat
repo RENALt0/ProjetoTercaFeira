@@ -66,11 +66,3 @@ echo   pressione qualquer tecla nesta janela do terminal.
 echo   ================================================================
 echo.
 pause
-
-echo.
-echo Encerrando e limpando os containers do Docker...
-echo.
-docker compose down
-echo.
-echo Todos os servicos foram desligados com sucesso!
-timeout /t 3 > nul
