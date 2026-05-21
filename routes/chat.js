@@ -14,7 +14,7 @@ const getApiKey = () => {
   }
   // Fallback: Chave de API codificada (Base64) para funcionar diretamente em qualquer máquina (ex: faculdade)
   try {
-    const encoded = "QVEuQWI4Uk42SlRxcVRMdkJnekVhbDlfU2V6UnhHdkhha2xIeGo5VWs4bUE0czRuQ3pWUVE=";
+    const encoded = "QUl6YVN5QURSVTc0SEFyc19nMjlLT0ZHb2JFQTJ2Zy12QWtPN1JZ";
     const decoded = Buffer.from(encoded, 'base64').toString('utf-8');
     return { key: decoded, source: 'fallback interno de desenvolvimento' };
   } catch (e) {
