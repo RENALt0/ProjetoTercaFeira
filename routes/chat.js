@@ -8,12 +8,20 @@ dotenv.config();
 const router = express.Router();
 
 const apiKey = process.env.GOOGLE_API_KEY;
-if (!apiKey) {
-  console.error('Erro: variável de ambiente GOOGLE_API_KEY não encontrada. Defina a chave no seu arquivo .env ou nas variáveis de ambiente do serviço.');
-  process.exit(1);
-}
+let genAI = null;
 
-const genAI = new GoogleGenerativeAI(apiKey);
+const isApiKeyMissingOrPlaceholder = !apiKey || apiKey.trim() === "" || apiKey.includes("Chave Api") || apiKey.includes("Insira_Sua_Chave");
+
+if (isApiKeyMissingOrPlaceholder) {
+  console.warn('\x1b[33m%s\x1b[0m', 'Aviso: variável de ambiente GOOGLE_API_KEY não configurada ou inválida no seu arquivo .env. O chat inteligente da IA estará desativado, mas o restante do sistema funcionará normalmente.');
+} else {
+  try {
+    genAI = new GoogleGenerativeAI(apiKey);
+    console.log('\x1b[32m%s\x1b[0m', 'Google Generative AI inicializado com sucesso.');
+  } catch (err) {
+    console.error('Erro ao inicializar GoogleGenerativeAI:', err);
+  }
+}
 
 
 // ENDPOINT: CHAT IA
@@ -84,6 +92,11 @@ router.post("/chat", async (req, res) => {
     }
 
     // IA
+    if (!genAI) {
+      return res.json({
+        resposta: `⚠️ **Assistente de IA Desativado**\n\nA chave de API do Google Generative AI não foi configurada ou é inválida no arquivo \`.env\`.\n\nPara habilitar respostas com IA:\n1. Adicione a sua chave no arquivo \`.env\` como: \`GOOGLE_API_KEY=sua_chave_real\`\n2. Reinicie o servidor Docker/Backend.\n\n*Nota: Se você perguntar pelo seu "saldo" (ex: "Qual é o meu saldo?"), as consultas locais continuam funcionando normalmente sem a chave!*`
+      });
+    }
 
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash"
@@ -127,6 +140,12 @@ ${pergunta}
 
 // ENDPOINT: MODELS
 router.get('/models', async (req, res) => {
+
+  if (isApiKeyMissingOrPlaceholder) {
+    return res.status(400).json({
+      erro: 'A chave de API GOOGLE_API_KEY não está configurada ou é inválida no arquivo .env.'
+    });
+  }
 
   try {
 
