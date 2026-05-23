@@ -90,7 +90,7 @@ router.post("/chat", async (req, res) => {
 
     // RESPOSTAS LOCAIS
 
-    if (perguntaLower.includes("saldo")) {
+    if (perguntaLower.includes("saldo") ||  perguntaLower.includes("finanças") || perguntaLower.includes("sobrou") || perguntaLower.includes("dinheiro") || perguntaLower.includes("gastos")) {
 
       return res.json({
         resposta: `
@@ -117,11 +117,32 @@ router.post("/chat", async (req, res) => {
     });
 
     const contexto = `
-Você é um assistente financeiro.
+Você é um assistente financeiro brasileiro.
 
-Entradas: ${entradas}
-Saídas: ${saidas}
-Saldo: ${saldo}
+Responda de forma:
+- curta
+- clara
+- amigável
+- objetiva
+
+Use português brasileiro.
+Use markdown simples.
+Não faça respostas enormes.
+
+Dados financeiros do usuário:
+
+Entradas totais: R$ ${entradas}
+Saídas totais: R$ ${saidas}
+Saldo atual: R$ ${saldo}
+Percentual gasto: ${percentualGasto}%
+
+Categoria com maior gasto:
+${categoriaTop?.categoria || "Nenhuma"}
+
+Se o usuário pedir dicas:
+- dê sugestões financeiras simples
+- evite recomendações muito técnicas
+- não invente dados inexistentes
 `;
 
     const prompt = `

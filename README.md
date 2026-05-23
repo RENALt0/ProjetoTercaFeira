@@ -59,14 +59,28 @@ start iniciar-projeto.bat
 ## Estrutura do Projeto
 ```
 .
-├─ routes/            # rotas da API (chat, transações, relatórios)
-├─ db.js              # configuração do pool PostgreSQL
-├─ index.js           # ponto de entrada do servidor
-├─ docker-compose.yaml
-├─ Dockerfile
-├─ .env.example       # template de variáveis de ambiente
-├─ iniciar-projeto.bat# script de inicialização em Windows
-└─ README.md          # este documento
+├─ Frontend/
+│  ├─ index.html        # interface principal da aplicação
+│  ├─ style.css         # estilização da interface
+│  ├─ script.js         # lógica do frontend e integração com a API
+│  └─ imagens/          # imagem usada de fundo na interface
+│
+├─ routes/
+│  ├─ transacoes.js     # CRUD e filtros de transações
+│  ├─ dashboard.js      # relatórios e análises financeiras
+│  └─ chat.js           # integração com IA Gemini
+│
+├─ utils/
+│  └─ validacoes.js     # validações auxiliares
+│
+├─ db.js                # configuração PostgreSQL
+├─ index.js             # servidor principal Express
+├─ docker-compose.yaml  # orquestração dos containers
+├─ Dockerfile           # configuração do container backend
+├─ .env.example         # exemplo de variáveis de ambiente
+├─ iniciar-projeto.bat  # inicialização automática do projeto
+├─ teste.http           # testes de endpoints
+└─ README.md            # documentação do projeto
 ```
 
 ## Testes rápidos
